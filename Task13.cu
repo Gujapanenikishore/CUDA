@@ -1,50 +1,16 @@
-
-//Task 13: Parallel Prime Number Finder (CUDA/Multithreaded) (Team - 2 people)
-
-//Implement a CUDA or multi-threaded prime number finder up to 1 million.
-
-//Benchmark and provide clear performance comparisons against sequential implementations.
-
-
-// File: prime_finder.cu or .cpp
-
+// Task 13: CUDA Prime Number Finder with Benchmark
+// C++ Standard: C++17
+// CUDA Version: 12.8
+// GPU: NVIDIA GTX TITAN X (Compute Capability 5.2)
 
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <thread>
 #include <chrono>
-#include <mutex>
+#include <cuda_runtime.h>
 
-#define ENABLE_SEQ    1
-#define ENABLE_THREAD 1
-#define ENABLE_CUDA   0  // Set to 1 if compiling with NVCC
+const int LIMIT = 1000000; // Change this value to test different ranges
 
-const int LIMIT = 1000000;  //  Change the limit to test other ranges
-
-// ---------------- Sequential Prime Check ----------------
-bool isPrime(int n) {
-    if (n < 2) return false;
-    if (n == 2) return true;
-    if (n % 2 == 0) return false;
-    int sqrtn = std::sqrt(n);
-    for (int i = 3; i <= sqrtn; i += 2)
-        if (n % i == 0) return false;
-    return true;
-}
-
-// ---------------- Multithreaded Prime Finder ----------------
-std::mutex mtx;
-void findPrimesThreaded(int start, int end, std::vector<int>& primes) {
-    std::vector<int> local;
-    for (int i = start; i <= end; ++i)
-        if (isPrime(i)) local.push_back(i);
-    std::lock_guard<std::mutex> lock(mtx);
-    primes.insert(primes.end(), local.begin(), local.end());
-}
-
-#if ENABLE_CUDA
-// ---------------- CUDA Code ----------------
 __device__ bool isPrimeGPU(int n) {
     if (n < 2) return false;
     if (n == 2) return true;
@@ -57,86 +23,75 @@ __device__ bool isPrimeGPU(int n) {
 
 __global__ void findPrimesCUDA(int* output, int* count, int N) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < N && isPrimeGPU(idx)) {
+    if (idx <= N && isPrimeGPU(idx)) {
         int pos = atomicAdd(count, 1);
         output[pos] = idx;
     }
 }
-#endif
+
+bool isPrimeCPU(int n) {
+    if (n < 2) return false;
+    if (n == 2) return true;
+    if (n % 2 == 0) return false;
+    int sqrtn = std::sqrt(n);
+    for (int i = 3; i <= sqrtn; i += 2)
+        if (n % i == 0) return false;
+    return true;
+}
 
 int main() {
-#if ENABLE_SEQ
-    std::cout << "\n[Sequential Version]\n";
-    std::vector<int> primes;
+    std::cout << "=== Prime Finder up to LIMIT = " << LIMIT << " ===\n\n";
+
+    // ---------------- Sequential ----------------
+    std::vector<int> cpu_primes;
     auto t1 = std::chrono::high_resolution_clock::now();
     for (int i = 2; i <= LIMIT; ++i)
-        if (isPrime(i)) primes.push_back(i);
+        if (isPrimeCPU(i)) cpu_primes.push_back(i);
     auto t2 = std::chrono::high_resolution_clock::now();
-    std::cout << "Found " << primes.size() << " primes in "
-              << std::chrono::duration<double>(t2 - t1).count() << " sec\n";
-#endif
+    double cpu_time = std::chrono::duration<double>(t2 - t1).count();
 
-#if ENABLE_THREAD
-    std::cout << "\n[Multithreaded Version]\n";
-    int num_threads = std::thread::hardware_concurrency();
-    int chunk = LIMIT / num_threads;
-    std::vector<std::thread> threads;
-    std::vector<int> thread_primes;
+    std::cout << "[CPU] Found " << cpu_primes.size() << " primes in " << cpu_time << " sec\n";
 
-    auto t3 = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < num_threads; ++i) {
-        int start = i * chunk + (i == 0 ? 2 : 0);
-        int end = (i == num_threads - 1) ? LIMIT : (i + 1) * chunk;
-        threads.emplace_back(findPrimesThreaded, start, end, std::ref(thread_primes));
-    }
-    for (auto& t : threads) t.join();
-    auto t4 = std::chrono::high_resolution_clock::now();
-    std::cout << "Found " << thread_primes.size() << " primes in "
-              << std::chrono::duration<double>(t4 - t3).count() << " sec\n";
-#endif
-
-#if ENABLE_CUDA
-    std::cout << "\n[CUDA Version]\n";
+    // ---------------- CUDA ----------------
     int* d_output;
     int* d_count;
     int* h_output = new int[LIMIT];
     int h_count = 0;
 
-    cudaMalloc(&d_output, LIMIT * sizeof(int));
-    cudaMalloc(&d_count, sizeof(int));
+    cudaError_t err;
+    err = cudaMalloc(&d_output, LIMIT * sizeof(int));
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA malloc d_output failed: " << cudaGetErrorString(err) << "\n"; return -1;
+    }
+    err = cudaMalloc(&d_count, sizeof(int));
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA malloc d_count failed: " << cudaGetErrorString(err) << "\n"; return -1;
+    }
     cudaMemset(d_count, 0, sizeof(int));
 
-    auto t5 = std::chrono::high_resolution_clock::now();
     int threads = 256;
     int blocks = (LIMIT + threads - 1) / threads;
+
+    auto t3 = std::chrono::high_resolution_clock::now();
     findPrimesCUDA<<<blocks, threads>>>(d_output, d_count, LIMIT);
     cudaDeviceSynchronize();
-    auto t6 = std::chrono::high_resolution_clock::now();
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "CUDA kernel launch failed: " << cudaGetErrorString(err) << "\n"; return -1;
+    }
+    auto t4 = std::chrono::high_resolution_clock::now();
+    double gpu_time = std::chrono::duration<double>(t4 - t3).count();
 
     cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_output, d_output, h_count * sizeof(int), cudaMemcpyDeviceToHost);
 
-    std::cout << "Found " << h_count << " primes in "
-              << std::chrono::duration<double>(t6 - t5).count() << " sec\n";
+    std::cout << "[CUDA] Found " << h_count << " primes in " << gpu_time << " sec\n";
+    std::cout << "Speedup over CPU: " << (cpu_time / gpu_time) << "x\n";
 
+    // ---------------- Cleanup ----------------
     delete[] h_output;
     cudaFree(d_output);
     cudaFree(d_count);
-#endif
 
     return 0;
 }
-
-
-
-//____________________
-//OUTPUT
-
-//[Sequential Version]
-//Found 78498 primes in 1.3 sec
-
-//[Multithreaded Version]
-//Found 78498 primes in 0.35 sec
-
-//[CUDA Version]
-//Found 78498 primes in 0.04 sec
