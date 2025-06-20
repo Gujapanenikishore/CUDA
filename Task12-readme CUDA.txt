@@ -1,134 +1,46 @@
-=============================================================
-TASK 12: CUDA PARALLEL MATRIX TRANSPOSE (C++ + CUDA)
-=============================================================
 
-OBJECTIVE:
-----------
-- Perform matrix transpose using GPU CUDA kernel
-- Validate correctness by comparing with CPU transpose
-- Visualize input, output (CPU and GPU), and verify result
+**TASK 12 - CUDA PARALLEL MATRIX TRANSPOSE**
 
--------------------------------------------------------------
-WHAT IS MATRIX TRANSPOSE?
---------------------------
-Given a matrix A of size R x C (rows x cols), its transpose Aᵗ is:
-- Element Aᵗ[i][j] = A[j][i]
+**MAIN GOAL**
+Implement and compare Matrix Transpose using:
 
-Example:
-Original (4x4):
-1 2 3 4
-5 6 7 8
-9 10 11 12
-13 14 15 16
+* CUDA (GPU)
+* C++ (CPU)
 
-Transpose (4x4):
-1 5 9 13
-2 6 10 14
-3 7 11 15
-4 8 12 16
+**REQUIREMENTS**
 
--------------------------------------------------------------
-CUDA IMPLEMENTATION LOGIC
---------------------------
+* C++17
+* CUDA 11.x or newer
+* NVIDIA GPU with CUDA support
 
-__global__ void transposeKernel(...)
+**HOW IT WORKS**
 
-- Each thread calculates a single element in the transposed matrix
-- Thread indices: 
-   x = threadIdx.x + blockIdx.x * blockDim.x (column)
-   y = threadIdx.y + blockIdx.y * blockDim.y (row)
-- Only update if x < cols and y < rows
-- Store transposed element:
-  out[x * rows + y] = in[y * cols + x]
+1. A 5x5 matrix is created with values from 1 to 25.
+2. Transposition is performed:
 
-This follows **row-major order** indexing.
+   * On CPU using nested loops
+   * On GPU using CUDA kernel with grid and block structure
+3. Time is measured for both CPU and GPU implementations.
+4. Results are printed and validated for correctness.
 
--------------------------------------------------------------
-CPU TRANSPOSE FUNCTION
------------------------
+**MEMORY MANAGEMENT**
 
-void transposeCPU(...)
+* Host memory is allocated using C++ `std::vector`.
+* Device memory is allocated using `cudaMalloc`.
+* Data is copied from host to device using `cudaMemcpy`.
+* After GPU execution, results are copied back to host.
+* Device memory is freed using `cudaFree` to avoid memory leaks.
 
-- Uses nested for loops:
-  for each row r and column c:
-    out[c * rows + r] = in[r * cols + c];
+**OUTPUT**
 
--------------------------------------------------------------
-MEMORY MANAGEMENT
-------------------
+* Original Matrix
+* CPU Transposed Matrix
+* GPU Transposed Matrix
+* Validation: PASS / FAIL
+* CPU Transposed Matrix Time (ms)
+* GPU Transposed Matrix Time (ms)
+* Speedup (CPU time / GPU time)
 
-- Device memory is allocated using cudaMalloc
-- Data copied from host to device using cudaMemcpy
-- After computation, output is copied back to host
-
-dim3 blockSize(2, 2)
-dim3 gridSize(...)
-- Adjusts grid to match size of input matrix
-
-cudaDeviceSynchronize() ensures kernel completion before data copy
-
--------------------------------------------------------------
-PRINT & VALIDATE
-------------------
-
-printMatrix(): prints 2D matrix from 1D array
-
-validate(): compares each element with CPU result within epsilon
-
--------------------------------------------------------------
-SAMPLE OUTPUT
--------------
-
-Original Matrix:
-1  2  3  4
-5  6  7  8
-9 10 11 12
-13 14 15 16
-
-CPU Transposed Matrix:
-1 5 9 13
-2 6 10 14
-3 7 11 15
-4 8 12 16
-
-GPU Transposed Matrix:
-1 5 9 13
-2 6 10 14
-3 7 11 15
-4 8 12 16
-
-Validation: PASS
-
-(Ensures correctness of CUDA kernel)
-
--------------------------------------------------------------
-HOW TO COMPILE & RUN (NVCC)
-----------------------------
-
-To compile:
-  nvcc -std=c++14 Task12.cu -o matrix_transpose
-
-To run:
-  ./matrix_transpose
-
--------------------------------------------------------------
-MODIFICATIONS FOR TESTING:
-----------------------------
-
-- Change matrix size: `rows`, `cols`
-- Test with non-square matrices (e.g., 3x5, 8x2)
-- Add timing logic using `chrono` to compare speed
-- Visualize matrices as formatted 2D tables
-- Use shared memory for optimization (advanced)
-
--------------------------------------------------------------
-CUDA CONCEPTS COVERED:
-------------------------
-
-- Thread blocks and grids
-- Memory management (cudaMalloc, cudaMemcpy)
-- Global kernel execution
-- Synchronization (cudaDeviceSynchronize)
-- Row-major vs column-major data layout
-- Validation between CPU and GPU results
+**SCALABILITY NOTE**
+As matrix size increases (e.g., 10x10, 100x100), GPU performance improves significantly due to parallelism.
 
