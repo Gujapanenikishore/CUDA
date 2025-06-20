@@ -6,7 +6,7 @@ Implement a matrix transpose operation using CUDA kernels.
 Validate results rigorously against CPU-based matrix transpose.
 
 C++ Standard: C++17
-CUDA Version: 11.x or newer
+CUDA Version: 11.x or newer*/
 
 #include <iostream>
 #include <vector>
@@ -102,7 +102,9 @@ int main() {
     return 0;
 }
 
-*/SAMPLE OUTPUT 
+
+
+/*SAMPLE OUTPUT 
 
 Original Matrix (Top-Left 5x5):
 1	2	3	4	5
@@ -128,7 +130,7 @@ GPU Transposed Matrix (Top-Left 5x5):
 Validation: PASS
 CPU Transpose Time: 23.0814 ms
 GPU Transpose Time: 2.1822 ms
-Speedup: 10.58x
+Speedup: 10.58x */
 
 
  
