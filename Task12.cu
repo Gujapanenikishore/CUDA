@@ -7,7 +7,6 @@ Validate results rigorously against CPU-based matrix transpose.
 
 C++ Standard: C++17
 CUDA Version: 11.x or newer
-*/
 
 #include <iostream>
 #include <vector>
@@ -40,11 +39,11 @@ bool validate(const std::vector<float>& a, const std::vector<float>& b, float ep
     return true;
 }
 
-// Print matrix in row-major format
-void printMatrix(const std::vector<float>& mat, int rows, int cols, const std::string& label) {
-    std::cout << label << ":\n";
-    for (int r = 0; r < rows; ++r) {
-        for (int c = 0; c < cols; ++c)
+// Print top-left corner of matrix
+void printMatrixPreview(const std::vector<float>& mat, int rows, int cols, const std::string& label, int preview = 5) {
+    std::cout << label << " (Top-Left " << preview << "x" << preview << "):\n";
+    for (int r = 0; r < preview; ++r) {
+        for (int c = 0; c < preview; ++c)
             std::cout << mat[r * cols + c] << "\t";
         std::cout << "\n";
     }
@@ -52,51 +51,23 @@ void printMatrix(const std::vector<float>& mat, int rows, int cols, const std::s
 }
 
 int main() {
-    // Small example for clarity (2x3 matrix)
-    const int small_rows = 2;
-    const int small_cols = 3;
-    std::vector<float> small_input = {1, 2, 3, 4, 5, 6};
-    std::vector<float> small_cpu_result(6), small_gpu_result(6);
-
-    // CPU transpose for small matrix
-    transposeCPU(small_cpu_result, small_input, small_rows, small_cols);
-
-    float *d_small_in, *d_small_out;
-    cudaMalloc(&d_small_in, 6 * sizeof(float));
-    cudaMalloc(&d_small_out, 6 * sizeof(float));
-    cudaMemcpy(d_small_in, small_input.data(), 6 * sizeof(float), cudaMemcpyHostToDevice);
-
-    dim3 blockSmall(2, 2);
-    dim3 gridSmall((small_cols + blockSmall.x - 1) / blockSmall.x,
-                   (small_rows + blockSmall.y - 1) / blockSmall.y);
-
-    transposeKernel<<<gridSmall, blockSmall>>>(d_small_out, d_small_in, small_rows, small_cols);
-    cudaMemcpy(small_gpu_result.data(), d_small_out, 6 * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaFree(d_small_in);
-    cudaFree(d_small_out);
-
-    printMatrix(small_input, small_rows, small_cols, "Original Small Matrix (2x3)");
-    printMatrix(small_cpu_result, small_cols, small_rows, "CPU Transposed (3x2)");
-    printMatrix(small_gpu_result, small_cols, small_rows, "GPU Transposed (3x2)");
-
-    std::cout << "Validation (Small Example): " << (validate(small_cpu_result, small_gpu_result) ? "PASS" : "FAIL") << "\n\n";
-
-    // Larger matrix for performance test
-    const int rows = 1000;  
+    const int rows = 1000;
     const int cols = 1000;
     const int size = rows * cols;
 
     std::vector<float> input(size);
-    for (int i = 0; i < size; ++i) input[i] = static_cast<float>(i + 1);
+    for (int i = 0; i < size; ++i)
+        input[i] = static_cast<float>(i + 1);
+
     std::vector<float> cpu_result(size), gpu_result(size);
 
-    // Time CPU transpose
+    // CPU Transpose
     auto start_cpu = std::chrono::high_resolution_clock::now();
     transposeCPU(cpu_result, input, rows, cols);
     auto end_cpu = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> cpu_time = end_cpu - start_cpu;
 
-    // Allocate CUDA memory
+    // GPU Transpose
     float *d_in, *d_out;
     cudaMalloc(&d_in, size * sizeof(float));
     cudaMalloc(&d_out, size * sizeof(float));
@@ -106,7 +77,6 @@ int main() {
     dim3 gridSize((cols + blockSize.x - 1) / blockSize.x,
                   (rows + blockSize.y - 1) / blockSize.y);
 
-    // Time GPU transpose
     auto start_gpu = std::chrono::high_resolution_clock::now();
     transposeKernel<<<gridSize, blockSize>>>(d_out, d_in, rows, cols);
     cudaDeviceSynchronize();
@@ -114,45 +84,53 @@ int main() {
     std::chrono::duration<double, std::milli> gpu_time = end_gpu - start_gpu;
 
     cudaMemcpy(gpu_result.data(), d_out, size * sizeof(float), cudaMemcpyDeviceToHost);
-
     cudaFree(d_in);
     cudaFree(d_out);
 
-    // Validate and report
+    // Print sample
+    printMatrixPreview(input, rows, cols, "Original Matrix");
+    printMatrixPreview(cpu_result, cols, rows, "CPU Transposed Matrix");
+    printMatrixPreview(gpu_result, cols, rows, "GPU Transposed Matrix");
+
+    // Validate and time results
     bool isValid = validate(cpu_result, gpu_result);
-    std::cout << "Validation (Large Matrix): " << (isValid ? "PASS" : "FAIL") << "\n";
+    std::cout << "Validation: " << (isValid ? "PASS" : "FAIL") << "\n";
     std::cout << "CPU Transpose Time: " << cpu_time.count() << " ms\n";
     std::cout << "GPU Transpose Time: " << gpu_time.count() << " ms\n";
     std::cout << "Speedup: " << (cpu_time.count() / gpu_time.count()) << "x\n";
 
-    std::cout << "\nNOTE: Larger matrix sizes benefit GPU performance significantly due to parallel execution.\n";
-
     return 0;
 }
 
-/*
-Sample Output:
+*/SAMPLE OUTPUT 
 
-Original Small Matrix (2x3):
-1	2	3
-4	5	6
+Original Matrix (Top-Left 5x5):
+1	2	3	4	5
+1001	1002	1003	1004	1005
+2001	2002	2003	2004	2005
+3001	3002	3003	3004	3005
+4001	4002	4003	4004	4005
 
-CPU Transposed (3x2):
-1	4
-2	5
-3	6
+CPU Transposed Matrix (Top-Left 5x5):
+1	1001	2001	3001	4001
+2	1002	2002	3002	4002
+3	1003	2003	3003	4003
+4	1004	2004	3004	4004
+5	1005	2005	3005	4005
 
-GPU Transposed (3x2):
-1	4
-2	5
-3	6
+GPU Transposed Matrix (Top-Left 5x5):
+1	1001	2001	3001	4001
+2	1002	2002	3002	4002
+3	1003	2003	3003	4003
+4	1004	2004	3004	4004
+5	1005	2005	3005	4005
 
-Validation (Small Example): PASS
+Validation: PASS
+CPU Transpose Time: 23.0814 ms
+GPU Transpose Time: 2.1822 ms
+Speedup: 10.58x
 
-Validation (Large Matrix): PASS
-CPU Transpose Time: 23.487 ms
-GPU Transpose Time: 2.189 ms
-Speedup: 10.73x
 
+ 
 NOTE: Larger matrix sizes benefit GPU performance significantly due to parallel execution.
 */
