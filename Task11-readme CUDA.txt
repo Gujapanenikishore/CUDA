@@ -1,138 +1,51 @@
-===========================================================
-TASK 11: CUDA PARALLEL VECTOR ADDITION (C++ with CUDA)
-===========================================================
+README - CUDA PARALLEL VECTOR ADDITION (C++17 + CUDA 11.X)
 
-OBJECTIVE:
-----------
-- Implement vector addition using CUDA (GPU)
-- Compare with sequential CPU implementation
-- Validate correctness
-- Measure performance and speedup
+MAIN TASK:
+Implement parallel vector addition using CUDA and compare it
+against sequential C++ implementation in terms of:
+- Performance (execution time)
+- Correctness (matching outputs)
+- Scalability (small to large vector sizes)
 
------------------------------------------------------------
+MAIN GOAL:
+- Demonstrate how GPU parallelism improves speed for large datasets.
+- Ensure the output from both CPU and GPU match within floating-point tolerance.
+- Measure speedup (CPU time / GPU time).
+
 HOW IT WORKS:
------------------------------------------------------------
+1. Vectors A and B are initialized with float values.
+2. CPU computes A + B using a loop (sequential method).
+3. GPU computes A + B in parallel using a CUDA kernel.
+4. Time is measured separately for CPU and GPU operations.
+5. GPU result is copied back to CPU memory and compared with CPU result.
+6. Output is printed showing vector size, time, speedup, and result match status.
 
-GOAL:
-Given vectors A and B of size N, compute:
-  C[i] = A[i] + B[i] for 0 <= i < N
+HOW TO GET OUTPUT:
+- Compile the file:
+  nvcc -std=c++17 -arch=sm_60 -O2 vector_add.cu -o vector_add
 
-IMPLEMENTATION:
-- CPU version using a simple for loop
-- GPU version using CUDA kernel
-
------------------------------------------------------------
-CUDA KERNEL FUNCTION:
----------------------
-
-__global__ void vectorAddKernel(const float* A, const float* B, float* C, int N)
-
-- Executed by multiple threads in parallel on GPU
-- Each thread handles one element:
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < N) → C[i] = A[i] + B[i];
-
------------------------------------------------------------
-CPU IMPLEMENTATION:
--------------------
-
-void vectorAddCPU(...)
-- Uses for loop to compute C[i] = A[i] + B[i]
-
------------------------------------------------------------
-VALIDATION:
------------
-
-bool validate(...)
-- Compares CPU result and GPU result element-wise
-- Returns true if all values match within a small epsilon (1e-5)
-
------------------------------------------------------------
-MAIN FUNCTION FLOW:
--------------------
-
-1. Define small test vectors A and B of size N=8
-
-2. CPU Calculation:
-   - Measure time using std::chrono
-   - Store result in C_cpu
-
-3. GPU Calculation:
-   - Allocate device memory: cudaMalloc
-   - Copy input vectors to device: cudaMemcpy
-   - Launch kernel: <<<blocks, threadsPerBlock>>>
-   - Copy result back to host
-   - Measure time and synchronize
-
-4. Free GPU memory
-
-5. Validate:
-   - Compare CPU and GPU results
-
-6. Report:
-   - Vector size
-   - CPU time
-   - GPU time
-   - Speedup = CPU time / GPU time
-   - Correctness status
-   - Print vector additions
-
------------------------------------------------------------
-SAMPLE OUTPUT:
------------------------------------------------------------
-
-Vector Size: 8
-CPU Time: 1.8e-05 sec
-GPU Time: 0.00017 sec
-Speedup:   0.106x
-Correctness: PASS
-
-Sample Output (Vector Add):
-1.5 + 2.5 = 4
-3 + -3 = 0
-5.2 + 1.8 = 7
-7.1 + 0.9 = 8
-0.5 + 3.5 = 4
--1 + 1 = 0
-2.2 + -2.2 = 0
-4.4 + 5.6 = 10
-
-(Note: Exact times and speedup will vary by hardware)
-
------------------------------------------------------------
-OBSERVATIONS:
------------------------------------------------------------
-
-- For small N, CPU is often faster (GPU overhead is high)
-- For large N (e.g., 1 million), GPU will outperform CPU
-- This program is a scalable starting point for larger data
-
------------------------------------------------------------
-COMPILATION (WITH NVCC):
--------------------------
-
-nvcc -std=c++14 Task11.cu -o vector_add
-
-Run:
+- Run the executable:
   ./vector_add
 
------------------------------------------------------------
-MODIFICATION OPTIONS:
-----------------------
+- Output includes:
+  - Vector size
+  - CPU time
+  - GPU time
+  - Speedup
+  - Correctness status
+  - Sample additions (only for small test cases)
 
-- Change N to a larger number (e.g., 1 million) to test scalability
-- Add multiple kernel blocks and threads for better load distribution
-- Add timing for memory transfers
-- Support double precision (change float to double)
+IMPLEMENTATION:
+- Defined a CUDA kernel: vectorAddKernel for parallel addition.
+- Implemented CPU logic: vectorAddCPU using std::vector.
+- Used chrono to record CPU and GPU execution times.
+- Validated GPU output against CPU result.
+- Included tests for small, medium, and large vectors.
+- Reported speedup and correctness on terminal.
 
------------------------------------------------------------
-CONCEPTS DEMONSTRATED:
------------------------
-
-- CUDA programming and memory management
-- Parallel execution model: blocks and threads
-- CPU vs GPU performance comparison
-- Device-host memory transfers (cudaMemcpy)
-- Synchronization (cudaDeviceSynchronize)
-- Validation and benchmarking
-
+OBSERVATIONS WHEN VECTOR SIZE INCREASES:
+- For small vectors (e.g., 8 elements), CPU is faster due to GPU launch overhead.
+- For medium vectors (e.g., 10,000 elements), GPU begins to outperform CPU.
+- For large vectors (e.g., 1,000,000 elements), GPU is significantly faster.
+- The speedup becomes noticeable only when parallel threads can effectively utilize the GPU cores.
+- Scalability benefits appear clearly as data size increases beyond thousands of elements.
