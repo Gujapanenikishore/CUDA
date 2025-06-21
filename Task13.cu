@@ -1,10 +1,6 @@
 // Task 13: CUDA Prime Number Finder with Benchmark
 // C++ Standard: C++17
 // CUDA Version: 12.8
-// GPU: NVIDIA GTX TITAN X (Compute Capability 5.2)
-// Task 13: CUDA Prime Number Finder with Benchmark
-// C++ Standard: C++17
-// CUDA Version: 12.8
 
 #include <iostream>
 #include <vector>
